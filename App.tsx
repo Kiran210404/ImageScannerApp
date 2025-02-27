@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Alert } from 'react-native';
-import { Camera, useCameraDevices } from 'react-native-vision-camera';
+import { Camera, useCameraDevices, CameraDevice } from 'react-native-vision-camera';
 import { useIsFocused } from '@react-navigation/native';
 
 const App = () => {
@@ -8,18 +8,19 @@ const App = () => {
   const [photo, setPhoto] = useState<string | null>(null);
   const cameraRef = useRef<Camera>(null);
   const devices = useCameraDevices();
-  const device = devices.find((d) => d.position === 'back');
-
+  const device: CameraDevice | undefined = devices.find((d) => d.position === 'back'); // ✅ Fixed selection
   const isFocused = useIsFocused();
 
-  // Request Camera Permission
+  // Request Camera & Microphone Permissions
   useEffect(() => {
     (async () => {
-      const permission = await Camera.requestCameraPermission();
-      if (permission === 'granted') {
+      const cameraPermission = await Camera.requestCameraPermission();
+      const microphonePermission = await Camera.requestMicrophonePermission();
+
+      if (cameraPermission === 'granted' && microphonePermission === 'granted') {
         setHasPermission(true);
       } else {
-        Alert.alert('Camera Permission', 'Camera access is required.');
+        Alert.alert('Permissions Required', 'Camera and microphone access is needed.');
       }
     })();
   }, []);
@@ -32,11 +33,13 @@ const App = () => {
   }
 
   const takePhoto = async () => {
+    if (!cameraRef.current) {
+      Alert.alert('Error', 'Camera is not ready.');
+      return;
+    }
     try {
-      if (cameraRef.current) {
-        const capturedPhoto = await cameraRef.current.takePhoto(); // Renamed variable
-        setPhoto(`file://${capturedPhoto.path}`);
-      }
+      const capturedPhoto = await cameraRef.current.takePhoto();
+      setPhoto(`file://${capturedPhoto.path}`);
     } catch (error) {
       Alert.alert('Error', 'Failed to capture image.');
     }
